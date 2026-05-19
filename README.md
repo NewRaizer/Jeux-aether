@@ -50,10 +50,14 @@ Services:
 
 | Service | URL |
 |---------|-----|
-| Frontend | http://localhost:5173 |
-| API | http://localhost:8000 |
-| API docs (Swagger) | http://localhost:8000/docs |
-| PostgreSQL | localhost:5432 |
+| Frontend | http://localhost:15173 |
+| API | http://localhost:18000 |
+| API docs (Swagger) | http://localhost:18000/docs |
+| PostgreSQL | localhost:15432 |
+
+> Host ports are deliberately non-standard (`15173`, `18000`, `15432`) to
+> avoid clashing with services already running on the machine. Container
+> ports are unchanged.
 
 ### Seeded accounts
 
@@ -63,7 +67,7 @@ Services:
 | Demo Tenant Admin | `formateur@logistique-dupont.fr` | `Formateur123!` |
 
 Demo tenant `logistique-dupont` ships with a module `securite-chariot` and an
-active questionnaire. Public quiz: http://localhost:5173/logistique-dupont/securite-chariot
+active questionnaire. Public quiz: http://localhost:15173/logistique-dupont/securite-chariot
 
 ---
 

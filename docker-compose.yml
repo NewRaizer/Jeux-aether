@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: immersyte
       POSTGRES_DB: immersyte
     ports:
-      - "5433:5432"
+      - "15432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -23,14 +23,14 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg2://immersyte:immersyte@postgres:5432/immersyte
       JWT_SECRET: dev-secret-change-me
-      PUBLIC_QUIZ_BASE_URL: http://localhost:5173
-      CORS_ORIGINS: http://localhost:5173
+      PUBLIC_QUIZ_BASE_URL: http://localhost:15173
+      CORS_ORIGINS: http://localhost:15173
       SUPER_ADMIN_EMAIL: florian@immersyte.com
       SUPER_ADMIN_PASSWORD: ChangeMe123!
       SUPER_ADMIN_NAME: Florian
       PORT: "8000"
     ports:
-      - "8000:8000"
+      - "18000:8000"
     volumes:
       - ./backend:/app
 
@@ -39,9 +39,9 @@ services:
     depends_on:
       - api
     environment:
-      VITE_API_URL: http://localhost:8000
+      VITE_API_URL: http://localhost:18000
     ports:
-      - "5173:5173"
+      - "15173:5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules
