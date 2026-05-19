@@ -137,6 +137,7 @@ class QuestionPublic(BaseModel):
 class QuestionnaireCreate(BaseModel):
     title: str
     is_active: bool = False
+    questions: list[QuestionIn] | None = None
 
 
 class QuestionnaireUpdate(BaseModel):

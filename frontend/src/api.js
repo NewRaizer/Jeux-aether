@@ -68,6 +68,33 @@ async function request(path, { method = "GET", body, auth = false, raw = false }
   return res.json();
 }
 
+async function upload(path, file, fieldName = "file") {
+  const form = new FormData();
+  form.append(fieldName, file);
+  const headers = {};
+  const tokens = getTokens();
+  if (tokens?.access_token)
+    headers["Authorization"] = `Bearer ${tokens.access_token}`;
+
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers,
+    body: form,
+  });
+
+  if (!res.ok) {
+    let detail = `Error ${res.status}`;
+    try {
+      const data = await res.json();
+      detail = data.detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+  }
+  return res.json();
+}
+
 export const api = {
   url: API_URL,
   get: (p, auth = true) => request(p, { auth }),
@@ -76,4 +103,5 @@ export const api = {
   patch: (p, body, auth = true) => request(p, { method: "PATCH", body, auth }),
   del: (p, auth = true) => request(p, { method: "DELETE", auth }),
   raw: (p, auth = true) => request(p, { auth, raw: true }),
+  upload,
 };

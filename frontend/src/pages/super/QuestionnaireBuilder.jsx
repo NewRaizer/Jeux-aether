@@ -20,17 +20,24 @@ function emptyQuestion(order) {
 }
 
 export default function QuestionnaireBuilder() {
-  const { questionnaireId } = useParams();
+  const { questionnaireId, moduleId } = useParams();
+  const isNew = !questionnaireId;
   const navigate = useNavigate();
+
   const [title, setTitle] = useState("");
   const [isActive, setIsActive] = useState(false);
   const [questions, setQuestions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+    if (isNew) {
+      // Start a brand-new questionnaire with one blank question.
+      setQuestions([emptyQuestion(0)]);
+      return;
+    }
     api.get(`/questionnaires/${questionnaireId}`).then((q) => {
       setTitle(q.title);
       setIsActive(q.is_active);
@@ -42,6 +49,7 @@ export default function QuestionnaireBuilder() {
       );
       setLoading(false);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questionnaireId]);
 
   function updateQuestion(idx, patch) {
@@ -52,6 +60,19 @@ export default function QuestionnaireBuilder() {
 
   function addQuestion() {
     setQuestions((qs) => [...qs, emptyQuestion(qs.length)]);
+  }
+
+  function duplicateQuestion(idx) {
+    setQuestions((qs) => {
+      const src = qs[idx];
+      const copy = {
+        ...src,
+        id: nextTempId(),
+        choices: src.choices.map((c) => ({ ...c, id: nextTempId() })),
+      };
+      const next = [...qs.slice(0, idx + 1), copy, ...qs.slice(idx + 1)];
+      return next.map((q, i) => ({ ...q, order: i }));
+    });
   }
 
   function removeQuestion(idx) {
@@ -115,6 +136,8 @@ export default function QuestionnaireBuilder() {
   }
 
   function validate() {
+    if (!title.trim()) return "Le titre du questionnaire est vide.";
+    if (questions.length === 0) return "Ajoutez au moins une question.";
     for (const [i, q] of questions.entries()) {
       if (!q.text.trim()) return `Question ${i + 1} : le texte est vide.`;
       if (q.question_type === "mcq") {
@@ -154,6 +177,16 @@ export default function QuestionnaireBuilder() {
               : [],
         })),
       };
+
+      if (isNew) {
+        const created = await api.post(
+          `/modules/${moduleId}/questionnaires`,
+          payload
+        );
+        navigate(`/admin/questionnaires/${created.id}`, { replace: true });
+        return;
+      }
+
       const updated = await api.put(
         `/questionnaires/${questionnaireId}`,
         payload
@@ -184,9 +217,14 @@ export default function QuestionnaireBuilder() {
         ← Retour
       </button>
 
+      <h1 className="mt-3 text-xl font-bold text-slate-800">
+        {isNew ? "Nouveau questionnaire" : "Éditer le questionnaire"}
+      </h1>
+
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <input
           className="input max-w-md text-lg font-semibold"
+          placeholder="Titre du questionnaire"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
@@ -202,14 +240,14 @@ export default function QuestionnaireBuilder() {
             onClick={() => save()}
             disabled={saving}
           >
-            Enregistrer
+            {isNew ? "Créer (brouillon)" : "Enregistrer"}
           </button>
           <button
             className="btn-primary"
-            onClick={() => save(!isActive)}
+            onClick={() => save(true)}
             disabled={saving}
           >
-            {isActive ? "Désactiver" : "Enregistrer & activer"}
+            {isNew ? "Créer & activer" : isActive ? "Enregistrer" : "Enregistrer & activer"}
           </button>
         </div>
       </div>
@@ -223,14 +261,16 @@ export default function QuestionnaireBuilder() {
           {message}
         </p>
       )}
-      <p className="mt-1 text-sm text-slate-400">
-        Statut :{" "}
-        {isActive ? (
-          <span className="text-green-600">actif</span>
-        ) : (
-          "inactif"
-        )}
-      </p>
+      {!isNew && (
+        <p className="mt-1 text-sm text-slate-400">
+          Statut :{" "}
+          {isActive ? (
+            <span className="text-green-600">actif</span>
+          ) : (
+            "inactif"
+          )}
+        </p>
+      )}
 
       {preview ? (
         <Preview title={title} questions={questions} />
@@ -274,18 +314,28 @@ export default function QuestionnaireBuilder() {
                   <button
                     className="btn-secondary px-2 py-1"
                     onClick={() => moveQuestion(qIdx, -1)}
+                    title="Monter"
                   >
                     ↑
                   </button>
                   <button
                     className="btn-secondary px-2 py-1"
                     onClick={() => moveQuestion(qIdx, 1)}
+                    title="Descendre"
                   >
                     ↓
                   </button>
                   <button
+                    className="btn-secondary px-2 py-1"
+                    onClick={() => duplicateQuestion(qIdx)}
+                    title="Dupliquer"
+                  >
+                    ⧉
+                  </button>
+                  <button
                     className="btn-danger px-2 py-1"
                     onClick={() => removeQuestion(qIdx)}
+                    title="Supprimer"
                   >
                     ✕
                   </button>
@@ -328,6 +378,9 @@ export default function QuestionnaireBuilder() {
                       + Ajouter un choix
                     </button>
                   )}
+                  <p className="text-xs text-slate-400">
+                    Cochez le bouton radio en face de la bonne réponse.
+                  </p>
                 </div>
               )}
             </div>
@@ -346,7 +399,7 @@ function Preview({ title, questions }) {
   return (
     <div className="mt-5 mx-auto max-w-md">
       <div className="card space-y-4">
-        <h2 className="text-lg font-bold">{title}</h2>
+        <h2 className="text-lg font-bold">{title || "(sans titre)"}</h2>
         {questions.map((q, i) => (
           <div key={q.id} className="space-y-2">
             <p className="font-medium text-slate-800">

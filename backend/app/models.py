@@ -21,7 +21,7 @@ class Tenant(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
-    logo_url: Mapped[str | None] = mapped_column(String(1024))
+    logo_url: Mapped[str | None] = mapped_column(Text)
     primary_color: Mapped[str] = mapped_column(String(16), default="#4f46e5")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
