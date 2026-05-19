@@ -50,6 +50,10 @@ export default function App() {
         <Route index element={<TenantList />} />
         <Route path="tenants/:tenantId" element={<TenantDetail />} />
         <Route
+          path="modules/:moduleId/questionnaires/new"
+          element={<QuestionnaireBuilder />}
+        />
+        <Route
           path="questionnaires/:questionnaireId"
           element={<QuestionnaireBuilder />}
         />

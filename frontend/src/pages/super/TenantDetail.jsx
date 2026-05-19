@@ -18,6 +18,7 @@ export default function TenantDetail() {
   const [modules, setModules] = useState([]);
   const [admins, setAdmins] = useState([]);
   const [tab, setTab] = useState("modules");
+  const [logoMsg, setLogoMsg] = useState("");
 
   async function load() {
     const [t, m, a] = await Promise.all([
@@ -28,6 +29,20 @@ export default function TenantDetail() {
     setTenant(t);
     setModules(m);
     setAdmins(a);
+  }
+
+  async function uploadLogo(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setLogoMsg("");
+    try {
+      await api.upload(`/tenants/${tenantId}/logo`, file);
+      await load();
+      setLogoMsg("Logo mis à jour.");
+    } catch (err) {
+      setLogoMsg(err.message);
+    }
   }
 
   useEffect(() => {
@@ -43,6 +58,35 @@ export default function TenantDetail() {
       </Link>
       <h1 className="mt-2 text-xl font-bold text-slate-800">{tenant.name}</h1>
       <p className="text-sm text-slate-400">/{tenant.slug}</p>
+
+      <div className="card mt-4 flex items-center gap-4">
+        {tenant.logo_url ? (
+          <img
+            src={tenant.logo_url}
+            alt={`Logo ${tenant.name}`}
+            className="h-16 w-16 rounded border border-slate-200 object-contain"
+          />
+        ) : (
+          <div className="flex h-16 w-16 items-center justify-center rounded border border-dashed border-slate-300 text-center text-xs text-slate-400">
+            Aucun logo
+          </div>
+        )}
+        <div>
+          <label className="btn-secondary cursor-pointer">
+            Téléverser un logo PNG
+            <input
+              type="file"
+              accept="image/png"
+              className="hidden"
+              onChange={uploadLogo}
+            />
+          </label>
+          <p className="mt-1 text-xs text-slate-400">Format PNG, max 1 Mo.</p>
+          {logoMsg && (
+            <p className="mt-1 text-xs text-slate-500">{logoMsg}</p>
+          )}
+        </div>
+      </div>
 
       <div className="my-5 flex gap-1 border-b border-slate-200">
         {[
@@ -204,16 +248,6 @@ function ModuleCard({ module, tenant, onRemove, onQr, reload }) {
     setOpen(!open);
   }
 
-  async function addQuestionnaire() {
-    const title = prompt("Titre du questionnaire :");
-    if (!title) return;
-    await api.post(`/modules/${module.id}/questionnaires`, {
-      title,
-      is_active: false,
-    });
-    loadQ();
-  }
-
   async function toggleActive() {
     await api.patch(`/modules/${module.id}`, { is_active: !module.is_active });
     reload();
@@ -260,12 +294,12 @@ function ModuleCard({ module, tenant, onRemove, onQr, reload }) {
         <div className="mt-4 border-t border-slate-100 pt-3">
           <div className="mb-2 flex items-center justify-between">
             <p className="text-sm font-medium text-slate-600">Questionnaires</p>
-            <button
+            <Link
+              to={`/admin/modules/${module.id}/questionnaires/new`}
               className="text-sm text-indigo-600 hover:underline"
-              onClick={addQuestionnaire}
             >
-              + Ajouter
-            </button>
+              + Nouveau questionnaire
+            </Link>
           </div>
           {questionnaires === null ? (
             <p className="text-sm text-slate-400">Chargement…</p>

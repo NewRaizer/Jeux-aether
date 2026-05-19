@@ -22,6 +22,7 @@ export default function TenantList() {
     logo_url: "",
     primary_color: "#4f46e5",
   });
+  const [logoFile, setLogoFile] = useState(null);
   const [error, setError] = useState("");
 
   async function load() {
@@ -41,14 +42,18 @@ export default function TenantList() {
     e.preventDefault();
     setError("");
     try {
-      await api.post("/tenants", {
+      const tenant = await api.post("/tenants", {
         name: form.name,
         slug: form.slug || slugify(form.name),
         logo_url: form.logo_url || null,
         primary_color: form.primary_color,
       });
+      if (logoFile) {
+        await api.upload(`/tenants/${tenant.id}/logo`, logoFile);
+      }
       setShowForm(false);
       setForm({ name: "", slug: "", logo_url: "", primary_color: "#4f46e5" });
+      setLogoFile(null);
       load();
     } catch (e) {
       setError(e.message);
@@ -110,7 +115,13 @@ export default function TenantList() {
       )}
 
       {showForm && (
-        <Modal title="Nouveau client" onClose={() => setShowForm(false)}>
+        <Modal
+          title="Nouveau client"
+          onClose={() => {
+            setShowForm(false);
+            setLogoFile(null);
+          }}
+        >
           <form onSubmit={create} className="space-y-3">
             <div>
               <label className="label">Nom</label>
@@ -139,7 +150,19 @@ export default function TenantList() {
               />
             </div>
             <div>
-              <label className="label">Logo URL (optionnel)</label>
+              <label className="label">Logo PNG (optionnel)</label>
+              <input
+                type="file"
+                accept="image/png"
+                className="input"
+                onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                Fichier PNG, max 1 Mo. Prioritaire sur l'URL ci-dessous.
+              </p>
+            </div>
+            <div>
+              <label className="label">… ou Logo via URL (optionnel)</label>
               <input
                 className="input"
                 value={form.logo_url}

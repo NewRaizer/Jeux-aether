@@ -5,6 +5,7 @@ from app.database import get_db
 from app.deps import require_super_admin
 from app.models import Choice, Module, Question, Questionnaire
 from app.schemas import (
+    QuestionIn,
     QuestionnaireCreate,
     QuestionnaireOut,
     QuestionnaireUpdate,
@@ -27,6 +28,47 @@ def _get_questionnaire(db: Session, q_id: int) -> Questionnaire:
     return q
 
 
+def _apply_questions(
+    db: Session, questionnaire: Questionnaire, questions: list[QuestionIn]
+) -> None:
+    """Validate and replace the questionnaire's whole question/choice tree."""
+    for index, question in enumerate(questions, start=1):
+        if question.question_type == "mcq":
+            if not 2 <= len(question.choices) <= 5:
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    f"Question {index}: MCQ questions need 2-5 choices",
+                )
+            if sum(1 for c in question.choices if c.is_correct) != 1:
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    f"Question {index}: mark exactly one correct choice",
+                )
+
+    for old in list(questionnaire.questions):
+        db.delete(old)
+    db.flush()
+
+    for order, question in enumerate(questions):
+        new_q = Question(
+            questionnaire_id=questionnaire.id,
+            text=question.text,
+            question_type=question.question_type,
+            order=order,
+        )
+        db.add(new_q)
+        db.flush()
+        if question.question_type == "mcq":
+            for choice in question.choices:
+                db.add(
+                    Choice(
+                        question_id=new_q.id,
+                        text=choice.text,
+                        is_correct=choice.is_correct,
+                    )
+                )
+
+
 @router.get("/modules/{module_id}/questionnaires", response_model=list[QuestionnaireOut])
 def list_questionnaires(module_id: int, db: Session = Depends(get_db)):
     _get_module(db, module_id)
@@ -43,9 +85,15 @@ def list_questionnaires(module_id: int, db: Session = Depends(get_db)):
 def create_questionnaire(
     module_id: int, payload: QuestionnaireCreate, db: Session = Depends(get_db)
 ):
+    """Create a questionnaire, optionally with its full question tree in one call."""
     _get_module(db, module_id)
-    q = Questionnaire(module_id=module_id, title=payload.title, is_active=payload.is_active)
+    q = Questionnaire(
+        module_id=module_id, title=payload.title, is_active=payload.is_active
+    )
     db.add(q)
+    db.flush()
+    if payload.questions is not None:
+        _apply_questions(db, q, payload.questions)
     db.commit()
     db.refresh(q)
     return q
@@ -67,44 +115,8 @@ def update_questionnaire(
         q.title = payload.title
     if payload.is_active is not None:
         q.is_active = payload.is_active
-
     if payload.questions is not None:
-        for question in payload.questions:
-            if question.question_type == "mcq":
-                if not 2 <= len(question.choices) <= 5:
-                    raise HTTPException(
-                        status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        "MCQ questions need 2-5 choices",
-                    )
-                if sum(1 for c in question.choices if c.is_correct) != 1:
-                    raise HTTPException(
-                        status.HTTP_422_UNPROCESSABLE_ENTITY,
-                        "MCQ questions need exactly one correct choice",
-                    )
-
-        # Replace the whole tree for a clean save.
-        for old in list(q.questions):
-            db.delete(old)
-        db.flush()
-
-        for question in payload.questions:
-            new_q = Question(
-                questionnaire_id=q.id,
-                text=question.text,
-                question_type=question.question_type,
-                order=question.order,
-            )
-            db.add(new_q)
-            db.flush()
-            if question.question_type == "mcq":
-                for choice in question.choices:
-                    db.add(
-                        Choice(
-                            question_id=new_q.id,
-                            text=choice.text,
-                            is_correct=choice.is_correct,
-                        )
-                    )
+        _apply_questions(db, q, payload.questions)
 
     db.commit()
     db.refresh(q)

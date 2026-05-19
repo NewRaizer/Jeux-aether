@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import base64
+
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.auth import hash_password
@@ -59,6 +61,35 @@ def delete_tenant(tenant_id: int, db: Session = Depends(get_db)):
     tenant = _get_tenant(db, tenant_id)
     db.delete(tenant)
     db.commit()
+
+
+MAX_LOGO_BYTES = 1_000_000
+
+
+@router.post("/{tenant_id}/logo", response_model=TenantOut)
+async def upload_logo(
+    tenant_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """Store an uploaded PNG logo as a base64 data URI on the tenant."""
+    tenant = _get_tenant(db, tenant_id)
+    if file.content_type != "image/png":
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, "Logo must be a PNG image"
+        )
+    data = await file.read()
+    if not data:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Empty file")
+    if len(data) > MAX_LOGO_BYTES:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, "Logo too large (max 1 MB)"
+        )
+    encoded = base64.b64encode(data).decode("ascii")
+    tenant.logo_url = f"data:image/png;base64,{encoded}"
+    db.commit()
+    db.refresh(tenant)
+    return tenant
 
 
 # ---------- Tenant admins ----------
