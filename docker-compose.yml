@@ -29,6 +29,12 @@ services:
       SUPER_ADMIN_PASSWORD: ChangeMe123!
       SUPER_ADMIN_NAME: Florian
       PORT: "8000"
+    # Run startup steps inline so the bind-mounted source (which may carry
+    # Windows CRLF line endings) is never executed as a shell script.
+    command:
+      - sh
+      - -c
+      - alembic upgrade head && (python seed.py || true) && uvicorn app.main:app --host 0.0.0.0 --port 8000
     ports:
       - "18000:8000"
     volumes:
