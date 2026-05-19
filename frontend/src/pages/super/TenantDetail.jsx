@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api";
 import Modal from "../../components/Modal.jsx";
 
@@ -122,6 +122,7 @@ export default function TenantDetail() {
 }
 
 function ModulesTab({ tenant, modules, reload }) {
+  const navigate = useNavigate();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", slug: "" });
   const [error, setError] = useState("");
@@ -130,7 +131,7 @@ function ModulesTab({ tenant, modules, reload }) {
     e.preventDefault();
     setError("");
     try {
-      await api.post(`/tenants/${tenant.id}/modules`, {
+      const module = await api.post(`/tenants/${tenant.id}/modules`, {
         title: form.title,
         description: form.description || null,
         slug: form.slug || slugify(form.title),
@@ -138,7 +139,8 @@ function ModulesTab({ tenant, modules, reload }) {
       });
       setShowForm(false);
       setForm({ title: "", description: "", slug: "" });
-      reload();
+      // Jump straight to the questionnaire builder for the new module.
+      navigate(`/admin/modules/${module.id}/questionnaires/new`);
     } catch (e) {
       setError(e.message);
     }
