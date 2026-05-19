@@ -9,9 +9,19 @@ import QuestionnaireBuilder from "./pages/super/QuestionnaireBuilder.jsx";
 import GlobalResults from "./pages/super/GlobalResults.jsx";
 import TenantResults from "./pages/tenant/TenantResults.jsx";
 
+function Loading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <p className="font-mono text-xs uppercase tracking-eyebrow text-muted">
+        Chargement…
+      </p>
+    </div>
+  );
+}
+
 function RequireRole({ role, children }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="p-8 text-slate-500">Chargement…</div>;
+  if (loading) return <Loading />;
   if (!user) return <Navigate to="/login" replace />;
   if (role && user.role !== role) return <Navigate to="/login" replace />;
   return children;
@@ -19,7 +29,7 @@ function RequireRole({ role, children }) {
 
 function HomeRedirect() {
   const { user, loading } = useAuth();
-  if (loading) return <div className="p-8 text-slate-500">Chargement…</div>;
+  if (loading) return <Loading />;
   if (!user) return <Navigate to="/login" replace />;
   return (
     <Navigate

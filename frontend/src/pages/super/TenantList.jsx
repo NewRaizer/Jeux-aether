@@ -20,7 +20,7 @@ export default function TenantList() {
     name: "",
     slug: "",
     logo_url: "",
-    primary_color: "#4f46e5",
+    primary_color: "#3A33FF",
   });
   const [logoFile, setLogoFile] = useState(null);
   const [error, setError] = useState("");
@@ -52,7 +52,7 @@ export default function TenantList() {
         await api.upload(`/tenants/${tenant.id}/logo`, logoFile);
       }
       setShowForm(false);
-      setForm({ name: "", slug: "", logo_url: "", primary_color: "#4f46e5" });
+      setForm({ name: "", slug: "", logo_url: "", primary_color: "#3A33FF" });
       setLogoFile(null);
       load();
     } catch (e) {
@@ -68,48 +68,83 @@ export default function TenantList() {
 
   return (
     <div>
-      <div className="mb-5 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-800">Clients</h1>
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b-2 border-ink pb-5">
+        <div>
+          <p className="eyebrow">Espace de travail</p>
+          <h1 className="display mt-1.5 text-4xl">Clients</h1>
+        </div>
         <button className="btn-primary" onClick={() => setShowForm(true)}>
           + Nouveau client
         </button>
       </div>
 
       {loading ? (
-        <p className="text-slate-400">Chargement…</p>
+        <p className="mt-8 font-mono text-sm uppercase tracking-wide text-muted">
+          Chargement…
+        </p>
       ) : tenants.length === 0 ? (
-        <p className="text-slate-400">Aucun client pour le moment.</p>
+        <div className="mt-8 border-2 border-dashed border-hairline p-12 text-center">
+          <p className="font-mono text-sm uppercase tracking-wide text-muted">
+            Aucun client pour le moment
+          </p>
+          <button
+            className="btn-secondary mt-4"
+            onClick={() => setShowForm(true)}
+          >
+            Créer le premier client
+          </button>
+        </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {tenants.map((t) => (
-            <div key={t.id} className="card">
-              <div className="flex items-center gap-3">
-                <span
-                  className="h-8 w-8 rounded-lg"
-                  style={{ backgroundColor: t.primary_color }}
-                />
-                <div className="min-w-0">
-                  <p className="truncate font-semibold text-slate-800">
-                    {t.name}
-                  </p>
-                  <p className="truncate text-xs text-slate-400">/{t.slug}</p>
+        <div className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {tenants.map((t, i) => (
+            <article
+              key={t.id}
+              className="card rise group flex flex-col transition-all duration-100 hover:-translate-x-1 hover:-translate-y-1 hover:shadow-hard"
+              style={{ animationDelay: `${i * 45}ms` }}
+            >
+              <div className="h-2 w-full" style={{ backgroundColor: t.primary_color }} />
+              <div className="flex flex-1 flex-col p-5">
+                <div className="flex items-start gap-3">
+                  {t.logo_url ? (
+                    <img
+                      src={t.logo_url}
+                      alt=""
+                      className="h-11 w-11 border-2 border-ink object-contain"
+                    />
+                  ) : (
+                    <span
+                      className="flex h-11 w-11 items-center justify-center border-2 border-ink font-display text-lg font-extrabold text-paper"
+                      style={{ backgroundColor: t.primary_color }}
+                    >
+                      {t.name.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <h2 className="truncate font-display text-lg font-bold leading-tight">
+                      {t.name}
+                    </h2>
+                    <p className="truncate font-mono text-[11px] uppercase tracking-wide text-muted">
+                      /{t.slug}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-5 flex gap-2 border-t border-hairline pt-4">
+                  <Link
+                    to={`/admin/tenants/${t.id}`}
+                    className="btn-secondary flex-1"
+                  >
+                    Gérer →
+                  </Link>
+                  <button
+                    className="btn-icon"
+                    onClick={() => remove(t.id)}
+                    title="Supprimer"
+                  >
+                    ✕
+                  </button>
                 </div>
               </div>
-              <div className="mt-4 flex gap-2">
-                <Link
-                  to={`/admin/tenants/${t.id}`}
-                  className="btn-secondary flex-1"
-                >
-                  Gérer
-                </Link>
-                <button
-                  className="btn-danger"
-                  onClick={() => remove(t.id)}
-                >
-                  Suppr.
-                </button>
-              </div>
-            </div>
+            </article>
           ))}
         </div>
       )}
@@ -122,9 +157,9 @@ export default function TenantList() {
             setLogoFile(null);
           }}
         >
-          <form onSubmit={create} className="space-y-3">
+          <form onSubmit={create} className="space-y-4">
             <div>
-              <label className="label">Nom</label>
+              <label className="label">Nom du client</label>
               <input
                 className="input"
                 value={form.name}
@@ -135,17 +170,19 @@ export default function TenantList() {
                     slug: form.slug || slugify(e.target.value),
                   })
                 }
+                placeholder="Logistique Dupont"
                 required
               />
             </div>
             <div>
-              <label className="label">Slug (URL)</label>
+              <label className="label">Slug (URL publique)</label>
               <input
                 className="input"
                 value={form.slug}
                 onChange={(e) =>
                   setForm({ ...form, slug: slugify(e.target.value) })
                 }
+                placeholder="logistique-dupont"
                 required
               />
             </div>
@@ -154,35 +191,45 @@ export default function TenantList() {
               <input
                 type="file"
                 accept="image/png"
-                className="input"
+                className="input file:mr-3 file:border-0 file:bg-ink file:px-2 file:py-1 file:font-mono file:text-[10px] file:uppercase file:text-paper"
                 onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
               />
-              <p className="mt-1 text-xs text-slate-400">
-                Fichier PNG, max 1 Mo. Prioritaire sur l'URL ci-dessous.
+              <p className="mt-1 font-mono text-[10px] uppercase tracking-wide text-muted">
+                PNG · 1 Mo max · prioritaire sur l'URL
               </p>
             </div>
             <div>
-              <label className="label">… ou Logo via URL (optionnel)</label>
+              <label className="label">… ou logo via URL</label>
               <input
                 className="input"
                 value={form.logo_url}
                 onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
+                placeholder="https://…"
               />
             </div>
             <div>
-              <label className="label">Couleur principale</label>
-              <input
-                type="color"
-                className="h-10 w-20 rounded border border-slate-300"
-                value={form.primary_color}
-                onChange={(e) =>
-                  setForm({ ...form, primary_color: e.target.value })
-                }
-              />
+              <label className="label">Couleur de marque</label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  className="h-10 w-14 cursor-pointer border-2 border-ink bg-surface"
+                  value={form.primary_color}
+                  onChange={(e) =>
+                    setForm({ ...form, primary_color: e.target.value })
+                  }
+                />
+                <span className="font-mono text-xs uppercase text-muted">
+                  {form.primary_color}
+                </span>
+              </div>
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && (
+              <p className="border-l-2 border-danger bg-danger/10 px-3 py-2 font-mono text-[11px] uppercase tracking-wide text-danger">
+                {error}
+              </p>
+            )}
             <button type="submit" className="btn-primary w-full">
-              Créer
+              Créer le client
             </button>
           </form>
         </Modal>

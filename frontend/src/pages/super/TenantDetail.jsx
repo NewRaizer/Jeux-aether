@@ -49,30 +49,59 @@ export default function TenantDetail() {
     load();
   }, [tenantId]);
 
-  if (!tenant) return <p className="text-slate-400">Chargement…</p>;
+  if (!tenant)
+    return (
+      <p className="font-mono text-sm uppercase tracking-wide text-muted">
+        Chargement…
+      </p>
+    );
 
   return (
     <div>
-      <Link to="/admin" className="text-sm text-indigo-600 hover:underline">
+      <Link to="/admin" className="btn-ghost">
         ← Tous les clients
       </Link>
-      <h1 className="mt-2 text-xl font-bold text-slate-800">{tenant.name}</h1>
-      <p className="text-sm text-slate-400">/{tenant.slug}</p>
 
-      <div className="card mt-4 flex items-center gap-4">
-        {tenant.logo_url ? (
-          <img
-            src={tenant.logo_url}
-            alt={`Logo ${tenant.name}`}
-            className="h-16 w-16 rounded border border-slate-200 object-contain"
-          />
-        ) : (
-          <div className="flex h-16 w-16 items-center justify-center rounded border border-dashed border-slate-300 text-center text-xs text-slate-400">
-            Aucun logo
+      {/* Identity header */}
+      <div className="mt-4 flex flex-col gap-5 border-2 border-ink bg-surface sm:flex-row sm:items-stretch">
+        <div
+          className="flex items-center gap-4 p-6 sm:w-1/2"
+          style={{ backgroundColor: `${tenant.primary_color}14` }}
+        >
+          {tenant.logo_url ? (
+            <img
+              src={tenant.logo_url}
+              alt=""
+              className="h-16 w-16 border-2 border-ink object-contain"
+            />
+          ) : (
+            <span
+              className="flex h-16 w-16 items-center justify-center border-2 border-ink font-display text-2xl font-extrabold text-paper"
+              style={{ backgroundColor: tenant.primary_color }}
+            >
+              {tenant.name.charAt(0).toUpperCase()}
+            </span>
+          )}
+          <div>
+            <p className="eyebrow">Client</p>
+            <h1 className="display text-3xl">{tenant.name}</h1>
+            <p className="mt-1 font-mono text-[11px] uppercase tracking-wide text-muted">
+              /{tenant.slug}
+            </p>
           </div>
-        )}
-        <div>
-          <label className="btn-secondary cursor-pointer">
+        </div>
+        <div className="flex flex-col justify-center gap-2 border-t-2 border-ink p-6 sm:w-1/2 sm:border-l-2 sm:border-t-0">
+          <p className="eyebrow">Identité visuelle</p>
+          <div className="flex items-center gap-3">
+            <span
+              className="h-5 w-5 border-2 border-ink"
+              style={{ backgroundColor: tenant.primary_color }}
+            />
+            <span className="font-mono text-xs uppercase text-muted">
+              {tenant.primary_color}
+            </span>
+          </div>
+          <label className="btn-secondary mt-1 w-fit cursor-pointer">
             Téléverser un logo PNG
             <input
               type="file"
@@ -81,42 +110,49 @@ export default function TenantDetail() {
               onChange={uploadLogo}
             />
           </label>
-          <p className="mt-1 text-xs text-slate-400">Format PNG, max 1 Mo.</p>
           {logoMsg && (
-            <p className="mt-1 text-xs text-slate-500">{logoMsg}</p>
+            <p className="font-mono text-[10px] uppercase tracking-wide text-success">
+              {logoMsg}
+            </p>
           )}
         </div>
       </div>
 
-      <div className="my-5 flex gap-1 border-b border-slate-200">
+      {/* Tabs */}
+      <div className="mt-7 flex gap-0 border-b-2 border-ink">
         {[
-          ["modules", "Modules"],
-          ["admins", "Administrateurs"],
-        ].map(([key, label]) => (
+          ["modules", "Modules", modules.length],
+          ["admins", "Administrateurs", admins.length],
+        ].map(([key, labelText, count]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`px-4 py-2 text-sm font-medium ${
+            className={`-mb-[2px] flex items-center gap-2 border-2 px-4 py-2.5 font-mono text-[12px] font-medium uppercase tracking-[0.08em] transition ${
               tab === key
-                ? "border-b-2 border-indigo-600 text-indigo-600"
-                : "text-slate-500"
+                ? "border-ink border-b-paper bg-surface text-ink"
+                : "border-transparent text-muted hover:text-ink"
             }`}
           >
-            {label}
+            {labelText}
+            <span
+              className={`px-1.5 text-[10px] ${
+                tab === key ? "bg-accent text-paper" : "bg-hairline text-ink"
+              }`}
+            >
+              {count}
+            </span>
           </button>
         ))}
       </div>
 
-      {tab === "modules" && (
-        <ModulesTab
-          tenant={tenant}
-          modules={modules}
-          reload={load}
-        />
-      )}
-      {tab === "admins" && (
-        <AdminsTab tenantId={tenantId} admins={admins} reload={load} />
-      )}
+      <div className="mt-6">
+        {tab === "modules" && (
+          <ModulesTab tenant={tenant} modules={modules} reload={load} />
+        )}
+        {tab === "admins" && (
+          <AdminsTab tenantId={tenantId} admins={admins} reload={load} />
+        )}
+      </div>
     </div>
   );
 }
@@ -139,7 +175,6 @@ function ModulesTab({ tenant, modules, reload }) {
       });
       setShowForm(false);
       setForm({ title: "", description: "", slug: "" });
-      // Jump straight to the questionnaire builder for the new module.
       navigate(`/admin/modules/${module.id}/questionnaires/new`);
     } catch (e) {
       setError(e.message);
@@ -152,35 +187,28 @@ function ModulesTab({ tenant, modules, reload }) {
     reload();
   }
 
-  async function downloadQr(module) {
-    const res = await api.raw(`/modules/${module.id}/qr`);
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `qr-${tenant.slug}-${module.slug}.png`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   return (
     <div>
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex items-center justify-between">
+        <p className="eyebrow">Modules de formation VR</p>
         <button className="btn-primary" onClick={() => setShowForm(true)}>
           + Nouveau module
         </button>
       </div>
       {modules.length === 0 ? (
-        <p className="text-slate-400">Aucun module.</p>
+        <div className="border-2 border-dashed border-hairline p-10 text-center">
+          <p className="font-mono text-sm uppercase tracking-wide text-muted">
+            Aucun module
+          </p>
+        </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {modules.map((m) => (
             <ModuleCard
               key={m.id}
               module={m}
               tenant={tenant}
               onRemove={() => remove(m.id)}
-              onQr={() => downloadQr(m)}
               reload={reload}
             />
           ))}
@@ -189,9 +217,9 @@ function ModulesTab({ tenant, modules, reload }) {
 
       {showForm && (
         <Modal title="Nouveau module" onClose={() => setShowForm(false)}>
-          <form onSubmit={create} className="space-y-3">
+          <form onSubmit={create} className="space-y-4">
             <div>
-              <label className="label">Titre</label>
+              <label className="label">Titre du module</label>
               <input
                 className="input"
                 value={form.title}
@@ -202,6 +230,7 @@ function ModulesTab({ tenant, modules, reload }) {
                     slug: form.slug || slugify(e.target.value),
                   })
                 }
+                placeholder="Sécurité chariot élévateur"
                 required
               />
             </div>
@@ -213,22 +242,28 @@ function ModulesTab({ tenant, modules, reload }) {
                 onChange={(e) =>
                   setForm({ ...form, slug: slugify(e.target.value) })
                 }
+                placeholder="securite-chariot"
                 required
               />
             </div>
             <div>
               <label className="label">Description</label>
               <textarea
-                className="input"
+                className="input min-h-[80px]"
                 value={form.description}
                 onChange={(e) =>
                   setForm({ ...form, description: e.target.value })
                 }
+                placeholder="Contexte affiché à l'apprenant…"
               />
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && (
+              <p className="border-l-2 border-danger bg-danger/10 px-3 py-2 font-mono text-[11px] uppercase tracking-wide text-danger">
+                {error}
+              </p>
+            )}
             <button type="submit" className="btn-primary w-full">
-              Créer
+              Créer & ajouter des questions →
             </button>
           </form>
         </Modal>
@@ -237,9 +272,10 @@ function ModulesTab({ tenant, modules, reload }) {
   );
 }
 
-function ModuleCard({ module, tenant, onRemove, onQr, reload }) {
+function ModuleCard({ module, tenant, onRemove, reload }) {
   const [questionnaires, setQuestionnaires] = useState(null);
   const [open, setOpen] = useState(false);
+  const publicUrl = `${window.location.origin}/${tenant.slug}/${module.slug}`;
 
   async function loadQ() {
     setQuestionnaires(await api.get(`/modules/${module.id}/questionnaires`));
@@ -250,6 +286,17 @@ function ModuleCard({ module, tenant, onRemove, onQr, reload }) {
     setOpen(!open);
   }
 
+  async function downloadQr() {
+    const res = await api.raw(`/modules/${module.id}/qr`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `qr-${tenant.slug}-${module.slug}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function toggleActive() {
     await api.patch(`/modules/${module.id}`, { is_active: !module.is_active });
     reload();
@@ -257,83 +304,87 @@ function ModuleCard({ module, tenant, onRemove, onQr, reload }) {
 
   return (
     <div className="card">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="font-semibold text-slate-800">
-            {module.title}{" "}
+      <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-display text-lg font-bold">{module.title}</h3>
             <span
-              className={`ml-1 rounded px-1.5 py-0.5 text-xs ${
+              className={`tag ${
                 module.is_active
-                  ? "bg-green-100 text-green-700"
-                  : "bg-slate-100 text-slate-500"
+                  ? "bg-success text-paper"
+                  : "bg-paper text-muted"
               }`}
             >
-              {module.is_active ? "actif" : "inactif"}
+              {module.is_active ? "Actif" : "Inactif"}
             </span>
+          </div>
+          <p className="mt-0.5 font-mono text-[11px] uppercase tracking-wide text-muted">
+            {publicUrl}
           </p>
-          <p className="text-xs text-slate-400">/{module.slug}</p>
           {module.description && (
-            <p className="mt-1 text-sm text-slate-600">{module.description}</p>
+            <p className="mt-2 max-w-xl text-sm text-ink/75">
+              {module.description}
+            </p>
           )}
         </div>
-        <div className="flex flex-shrink-0 flex-wrap justify-end gap-2">
+        <div className="flex flex-shrink-0 flex-wrap gap-2">
           <button className="btn-secondary" onClick={toggle}>
-            Questionnaires
+            {open ? "Masquer" : "Questionnaires"}
           </button>
-          <button className="btn-secondary" onClick={onQr}>
+          <button className="btn-secondary" onClick={downloadQr}>
             QR code
           </button>
           <button className="btn-secondary" onClick={toggleActive}>
             {module.is_active ? "Désactiver" : "Activer"}
           </button>
-          <button className="btn-danger" onClick={onRemove}>
-            Suppr.
+          <button className="btn-icon" onClick={onRemove} title="Supprimer">
+            ✕
           </button>
         </div>
       </div>
 
       {open && (
-        <div className="mt-4 border-t border-slate-100 pt-3">
-          <div className="mb-2 flex items-center justify-between">
-            <p className="text-sm font-medium text-slate-600">Questionnaires</p>
+        <div className="border-t-2 border-ink bg-paper/50 p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="eyebrow">Questionnaires</p>
             <Link
               to={`/admin/modules/${module.id}/questionnaires/new`}
-              className="text-sm text-indigo-600 hover:underline"
+              className="btn-ghost"
             >
               + Nouveau questionnaire
             </Link>
           </div>
           {questionnaires === null ? (
-            <p className="text-sm text-slate-400">Chargement…</p>
+            <p className="font-mono text-xs uppercase tracking-wide text-muted">
+              Chargement…
+            </p>
           ) : questionnaires.length === 0 ? (
-            <p className="text-sm text-slate-400">Aucun questionnaire.</p>
+            <p className="font-mono text-xs uppercase tracking-wide text-muted">
+              Aucun questionnaire — créez-en un pour activer ce quiz.
+            </p>
           ) : (
-            <ul className="space-y-1">
+            <ul className="divide-y divide-hairline border-2 border-ink bg-surface">
               {questionnaires.map((q) => (
                 <li
                   key={q.id}
-                  className="flex items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-sm"
+                  className="flex items-center justify-between gap-3 px-4 py-2.5"
                 >
-                  <span>
-                    {q.title}{" "}
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    {q.title}
                     {q.is_active && (
-                      <span className="text-green-600">(actif)</span>
+                      <span className="tag bg-success text-paper">Actif</span>
                     )}
                   </span>
                   <Link
                     to={`/admin/questionnaires/${q.id}`}
-                    className="text-indigo-600 hover:underline"
+                    className="btn-ghost"
                   >
-                    Éditer
+                    Éditer →
                   </Link>
                 </li>
               ))}
             </ul>
           )}
-          <p className="mt-2 text-xs text-slate-400">
-            URL publique : {window.location.origin}/{tenant.slug}/
-            {module.slug}
-          </p>
         </div>
       )}
     </div>
@@ -371,40 +422,54 @@ function AdminsTab({ tenantId, admins, reload }) {
 
   return (
     <div>
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex items-center justify-between">
+        <p className="eyebrow">Accès au tableau de bord client</p>
         <button className="btn-primary" onClick={() => setShowForm(true)}>
-          + Nouvel administrateur
+          + Administrateur
         </button>
       </div>
       {admins.length === 0 ? (
-        <p className="text-slate-400">Aucun administrateur.</p>
-      ) : (
-        <div className="space-y-2">
-          {admins.map((a) => (
-            <div
-              key={a.id}
-              className="card flex items-center justify-between py-3"
-            >
-              <div>
-                <p className="font-medium text-slate-800">{a.full_name}</p>
-                <p className="text-sm text-slate-400">
-                  {a.email} · {a.role}
-                </p>
-              </div>
-              <button className="btn-danger" onClick={() => remove(a.id)}>
-                Suppr.
-              </button>
-            </div>
-          ))}
+        <div className="border-2 border-dashed border-hairline p-10 text-center">
+          <p className="font-mono text-sm uppercase tracking-wide text-muted">
+            Aucun administrateur
+          </p>
         </div>
+      ) : (
+        <ul className="divide-y-2 divide-ink border-2 border-ink bg-surface">
+          {admins.map((a) => (
+            <li
+              key={a.id}
+              className="flex items-center justify-between gap-3 px-5 py-3.5"
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center border-2 border-ink bg-paper font-display text-sm font-extrabold">
+                  {a.full_name.charAt(0).toUpperCase()}
+                </span>
+                <div>
+                  <p className="text-sm font-semibold">{a.full_name}</p>
+                  <p className="font-mono text-[11px] uppercase tracking-wide text-muted">
+                    {a.email}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="tag bg-paper">{a.role}</span>
+                <button
+                  className="btn-icon"
+                  onClick={() => remove(a.id)}
+                  title="Supprimer"
+                >
+                  ✕
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
       )}
 
       {showForm && (
-        <Modal
-          title="Nouvel administrateur"
-          onClose={() => setShowForm(false)}
-        >
-          <form onSubmit={create} className="space-y-3">
+        <Modal title="Nouvel administrateur" onClose={() => setShowForm(false)}>
+          <form onSubmit={create} className="space-y-4">
             <div>
               <label className="label">Nom complet</label>
               <input
@@ -427,7 +492,7 @@ function AdminsTab({ tenantId, admins, reload }) {
               />
             </div>
             <div>
-              <label className="label">Mot de passe (min. 8 caractères)</label>
+              <label className="label">Mot de passe · 8 caractères min.</label>
               <input
                 type="password"
                 className="input"
@@ -450,9 +515,13 @@ function AdminsTab({ tenantId, admins, reload }) {
                 <option value="viewer">Viewer</option>
               </select>
             </div>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && (
+              <p className="border-l-2 border-danger bg-danger/10 px-3 py-2 font-mono text-[11px] uppercase tracking-wide text-danger">
+                {error}
+              </p>
+            )}
             <button type="submit" className="btn-primary w-full">
-              Créer
+              Créer l'administrateur
             </button>
           </form>
         </Modal>

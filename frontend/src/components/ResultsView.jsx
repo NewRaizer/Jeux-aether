@@ -10,6 +10,13 @@ function fmtDate(s) {
   });
 }
 
+function scoreTone(score) {
+  if (score == null) return "bg-paper text-muted";
+  if (score >= 70) return "bg-success text-paper";
+  if (score >= 50) return "bg-warning text-paper";
+  return "bg-danger text-paper";
+}
+
 export default function ResultsView({ tenants }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,8 +35,7 @@ export default function ResultsView({ tenants }) {
     if (filters.module_id) params.set("module_id", filters.module_id);
     if (filters.learner) params.set("learner", filters.learner);
     if (filters.date_from) params.set("date_from", filters.date_from);
-    if (filters.date_to)
-      params.set("date_to", `${filters.date_to}T23:59:59`);
+    if (filters.date_to) params.set("date_to", `${filters.date_to}T23:59:59`);
     return params.toString();
   }
 
@@ -48,11 +54,20 @@ export default function ResultsView({ tenants }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Distinct modules present in the loaded rows, for the module filter.
   const moduleOptions = useMemo(() => {
     const map = new Map();
     rows.forEach((r) => map.set(r.module_id, r.module_title));
     return [...map.entries()];
+  }, [rows]);
+
+  const stats = useMemo(() => {
+    const scored = rows.filter((r) => r.score_percent != null);
+    const avg = scored.length
+      ? Math.round(
+          scored.reduce((s, r) => s + r.score_percent, 0) / scored.length
+        )
+      : null;
+    return { total: rows.length, completed: scored.length, avg };
   }, [rows]);
 
   async function exportCsv() {
@@ -73,147 +88,164 @@ export default function ResultsView({ tenants }) {
 
   return (
     <div>
-      <div className="card mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {tenants && (
+      {/* Stat strip */}
+      <div className="mb-5 grid grid-cols-3 border-2 border-ink bg-ink">
+        {[
+          ["Sessions", stats.total],
+          ["Terminées", stats.completed],
+          ["Score moyen", stats.avg != null ? `${stats.avg}%` : "—"],
+        ].map(([k, v], i) => (
+          <div
+            key={k}
+            className={`bg-surface p-4 ${i > 0 ? "border-l-2 border-ink" : ""}`}
+          >
+            <p className="eyebrow">{k}</p>
+            <p className="display mt-1 text-3xl">{v}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div className="card-pad mb-4">
+        <p className="eyebrow mb-3">Filtres</p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {tenants && (
+            <div>
+              <label className="label">Client</label>
+              <select
+                className="input"
+                value={filters.tenant_id}
+                onChange={(e) =>
+                  setFilters({ ...filters, tenant_id: e.target.value })
+                }
+              >
+                <option value="">Tous</option>
+                {tenants.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
-            <label className="label">Client</label>
+            <label className="label">Module</label>
             <select
               className="input"
-              value={filters.tenant_id}
+              value={filters.module_id}
               onChange={(e) =>
-                setFilters({ ...filters, tenant_id: e.target.value })
+                setFilters({ ...filters, module_id: e.target.value })
               }
             >
               <option value="">Tous</option>
-              {tenants.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
+              {moduleOptions.map(([id, title]) => (
+                <option key={id} value={id}>
+                  {title}
                 </option>
               ))}
             </select>
           </div>
-        )}
-        <div>
-          <label className="label">Module</label>
-          <select
-            className="input"
-            value={filters.module_id}
-            onChange={(e) =>
-              setFilters({ ...filters, module_id: e.target.value })
-            }
-          >
-            <option value="">Tous</option>
-            {moduleOptions.map(([id, title]) => (
-              <option key={id} value={id}>
-                {title}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label className="label">Apprenant</label>
+            <input
+              className="input"
+              placeholder="Nom ou prénom"
+              value={filters.learner}
+              onChange={(e) =>
+                setFilters({ ...filters, learner: e.target.value })
+              }
+            />
+          </div>
+          <div>
+            <label className="label">Du</label>
+            <input
+              type="date"
+              className="input"
+              value={filters.date_from}
+              onChange={(e) =>
+                setFilters({ ...filters, date_from: e.target.value })
+              }
+            />
+          </div>
+          <div>
+            <label className="label">Au</label>
+            <input
+              type="date"
+              className="input"
+              value={filters.date_to}
+              onChange={(e) =>
+                setFilters({ ...filters, date_to: e.target.value })
+              }
+            />
+          </div>
         </div>
-        <div>
-          <label className="label">Apprenant</label>
-          <input
-            className="input"
-            placeholder="Nom ou prénom"
-            value={filters.learner}
-            onChange={(e) =>
-              setFilters({ ...filters, learner: e.target.value })
-            }
-          />
-        </div>
-        <div>
-          <label className="label">Du</label>
-          <input
-            type="date"
-            className="input"
-            value={filters.date_from}
-            onChange={(e) =>
-              setFilters({ ...filters, date_from: e.target.value })
-            }
-          />
-        </div>
-        <div>
-          <label className="label">Au</label>
-          <input
-            type="date"
-            className="input"
-            value={filters.date_to}
-            onChange={(e) =>
-              setFilters({ ...filters, date_to: e.target.value })
-            }
-          />
-        </div>
-        <div className="flex items-end gap-2">
-          <button className="btn-primary flex-1" onClick={load}>
-            Filtrer
+        <div className="mt-4 flex gap-2">
+          <button className="btn-primary" onClick={load}>
+            Appliquer les filtres
+          </button>
+          <button className="btn-secondary" onClick={exportCsv}>
+            ↓ Export CSV
           </button>
         </div>
       </div>
 
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm text-slate-500">{rows.length} résultat(s)</p>
-        <button className="btn-secondary" onClick={exportCsv}>
-          Exporter CSV
-        </button>
-      </div>
-
-      <div className="card overflow-x-auto p-0">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-slate-500">
-            <tr>
-              <th className="px-4 py-2">Apprenant</th>
-              <th className="px-4 py-2">Module</th>
-              <th className="px-4 py-2">Date</th>
-              <th className="px-4 py-2">Score</th>
-              <th className="px-4 py-2"></th>
+      {/* Table */}
+      <div className="card overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="bg-ink text-left font-mono text-[11px] uppercase tracking-[0.08em] text-paper">
+              <th className="px-4 py-2.5 font-medium">Apprenant</th>
+              <th className="px-4 py-2.5 font-medium">Module</th>
+              <th className="px-4 py-2.5 font-medium">Date</th>
+              <th className="px-4 py-2.5 font-medium">Score</th>
+              <th className="px-4 py-2.5"></th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                <td
+                  colSpan={5}
+                  className="px-4 py-8 text-center font-mono text-xs uppercase tracking-wide text-muted"
+                >
                   Chargement…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
-                  Aucun résultat.
+                <td
+                  colSpan={5}
+                  className="px-4 py-8 text-center font-mono text-xs uppercase tracking-wide text-muted"
+                >
+                  Aucun résultat
                 </td>
               </tr>
             ) : (
               rows.map((r) => (
-                <tr key={r.id} className="border-t border-slate-100">
-                  <td className="px-4 py-2 font-medium">
+                <tr
+                  key={r.id}
+                  className="border-t border-hairline transition hover:bg-paper/70"
+                >
+                  <td className="px-4 py-2.5 font-semibold">
                     {r.learner_firstname} {r.learner_lastname}
                   </td>
-                  <td className="px-4 py-2 text-slate-600">{r.module_title}</td>
-                  <td className="px-4 py-2 text-slate-500">
+                  <td className="px-4 py-2.5 text-ink/75">{r.module_title}</td>
+                  <td className="px-4 py-2.5 font-mono text-[12px] text-muted">
                     {fmtDate(r.started_at)}
                   </td>
-                  <td className="px-4 py-2">
-                    {r.score_percent != null ? (
-                      <span
-                        className={`rounded px-2 py-0.5 text-xs font-medium ${
-                          r.score_percent >= 70
-                            ? "bg-green-100 text-green-700"
-                            : r.score_percent >= 50
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-red-100 text-red-700"
-                        }`}
-                      >
-                        {r.score_percent}%
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">incomplet</span>
-                    )}
+                  <td className="px-4 py-2.5">
+                    <span className={`tag ${scoreTone(r.score_percent)}`}>
+                      {r.score_percent != null
+                        ? `${r.score_percent}%`
+                        : "Incomplet"}
+                    </span>
                   </td>
-                  <td className="px-4 py-2 text-right">
+                  <td className="px-4 py-2.5 text-right">
                     <button
-                      className="text-indigo-600 hover:underline"
+                      className="btn-ghost"
                       onClick={() => openDetail(r.id)}
                     >
-                      Détail
+                      Détail →
                     </button>
                   </td>
                 </tr>
@@ -228,39 +260,43 @@ export default function ResultsView({ tenants }) {
           title={`${detail.learner_firstname} ${detail.learner_lastname}`}
           onClose={() => setDetail(null)}
         >
-          <div className="space-y-3">
-            <div className="text-sm text-slate-500">
-              {detail.module_title} · {detail.questionnaire_title}
-              <br />
-              {fmtDate(detail.started_at)} · Score :{" "}
-              <span className="font-semibold text-slate-700">
-                {detail.score_percent != null
-                  ? `${detail.score_percent}%`
-                  : "—"}
-              </span>
+          <div className="space-y-4">
+            <div className="border-2 border-ink bg-paper/60 p-3">
+              <p className="font-mono text-[11px] uppercase tracking-wide text-muted">
+                {detail.module_title} · {detail.questionnaire_title}
+              </p>
+              <p className="mt-1 font-mono text-[11px] uppercase tracking-wide text-muted">
+                {fmtDate(detail.started_at)}
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="eyebrow">Score</span>
+                <span className={`tag ${scoreTone(detail.score_percent)}`}>
+                  {detail.score_percent != null
+                    ? `${detail.score_percent}%`
+                    : "—"}
+                </span>
+              </div>
             </div>
             <div className="space-y-2">
               {detail.answers.map((a, i) => (
-                <div
-                  key={i}
-                  className="rounded-lg border border-slate-200 p-3 text-sm"
-                >
-                  <p className="font-medium text-slate-800">
-                    {i + 1}. {a.question_text}
+                <div key={i} className="border-2 border-ink p-3 text-sm">
+                  <p className="font-semibold">
+                    <span className="mr-1.5 font-mono text-accent">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    {a.question_text}
                   </p>
                   {a.question_type === "mcq" ? (
                     <p
-                      className={
-                        a.selected_is_correct
-                          ? "text-green-700"
-                          : "text-red-600"
-                      }
+                      className={`mt-1 font-mono text-[12px] uppercase tracking-wide ${
+                        a.selected_is_correct ? "text-success" : "text-danger"
+                      }`}
                     >
-                      {a.selected_is_correct ? "✓" : "✗"}{" "}
+                      {a.selected_is_correct ? "✓ " : "✗ "}
                       {a.selected_choice_text || "(pas de réponse)"}
                     </p>
                   ) : (
-                    <p className="rounded bg-slate-50 p-2 text-slate-600">
+                    <p className="mt-1 border-l-2 border-hairline bg-paper/60 px-2 py-1.5 text-ink/75">
                       {a.open_text || "—"}
                     </p>
                   )}
